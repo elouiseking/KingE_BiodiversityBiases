@@ -1,0 +1,746 @@
+---
+title: "Ch1_Script_V2"
+author: "E.King"
+format: docx
+editor: visual
+---
+
+# Biodiversity biases in research and practice - Code
+
+```{r}
+#| echo: false
+#1 - Set up & load packages
+getwd()
+library(ggplot2)
+library(dplyr)
+library(vegan)
+library(stats)
+library(gridExtra)
+library(tidyr)
+library(gridExtra)
+library(RColorBrewer)
+library(cowplot)
+library(grid)
+library(ggrepel)
+library(patchwork)
+library(car)
+library(Matrix)
+library(broom)
+library(kableExtra)
+library(devtools)
+#install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+library(pairwiseAdonis)
+#install.packages("colorBlindness")
+library(colorBlindness)
+#install.packages("emmeans")
+library(emmeans)
+
+```
+
+## PCA & Diversity Analysis
+
+#### EIAR PCA
+
+```{r}
+#| echo: false
+eiar_data <- read.csv("eiar_matrix_v2.csv")
+
+eiar_pca_data <- eiar_data
+```
+
+PCA using prcomp()
+
+```{r}
+#we don't scale data because it is proportion data -> scaling would be inappropriate
+eiar_pca <- prcomp(eiar_pca_data[,-1])
+summary(eiar_pca)
+print(eiar_pca)
+biplot(eiar_pca)
+
+#plot pc1 & pc2
+plot(eiar_pca$x[,1], eiar_pca$x[,2])
+```
+
+```{r}
+#make a scree plot
+eiar_pca_var <- eiar_pca$sdev^2
+eiar_pca_var_per <- round(eiar_pca_var/sum(eiar_pca_var)*100, 1)
+
+barplot(eiar_pca_var_per, main = "Scree Plot", xlab = "Principal Component", ylab = "Percent Variation")
+```
+
+```{r}
+# plot the PCA
+eiar_scores <- as.data.frame(eiar_pca$x[,1:2])
+colnames(eiar_scores) <- c("PC1", "PC2")
+
+eiar_plot <- data.frame(PC1 = eiar_scores$PC1,
+                        PC2 = eiar_scores$PC2,
+                        Year = eiar_pca_data$year)
+
+eiar_pca_plot <- ggplot(data= eiar_plot, aes(x = PC1, y = PC2, label = Year)) +
+  geom_text_repel(max.overlaps = Inf) +
+  xlab(paste("PC1 - ", eiar_pca_var_per[1], "%", sep = "")) +
+  ylab(paste("PC2 - ", eiar_pca_var_per[2], "%", sep = "")) +
+  theme_light() +
+  theme(legend.position = "none",
+        legend.title = element_text(size = 16),
+        legend.text = element_text(size = 14)) +
+  theme(axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black"),   
+        axis.line = element_line(color = "black"),   
+        plot.title = element_text(size = 16, face = "bold", color = "black")) +
+  ggtitle("(d) EIAR") 
+```
+
+#### Literature PCA
+
+```{r}
+#| echo: false
+lit_data <- read.csv("literature_matrix_v3.csv")
+
+lit_pca_data <- lit_data
+```
+
+PCA using prcomp()
+
+```{r}
+lit_pca <- prcomp(lit_pca_data[, -1])
+summary(lit_pca)
+print(lit_pca)
+biplot(lit_pca)
+
+#plot pc1 and pc2
+plot(lit_pca$x[,1], lit_pca$x[,2])
+```
+
+```{r}
+#make a scree plot
+lit_pca_var <- lit_pca$sdev^2
+lit_pca_var_per <- round(lit_pca_var/sum(lit_pca_var)*100,1)
+
+barplot(lit_pca_var_per, main = "Scree Plot", xlab = "Principal Component", ylab = "Percent Variation" )
+```
+
+```{r}
+#plot the pca
+lit_scores <-as.data.frame(lit_pca$x[,1:2])
+colnames(lit_scores) <- c("PC1", "PC2")
+
+lit_plot <- data.frame(PC1 = lit_scores$PC1,
+                       PC2 = lit_scores$PC2,
+                       Year = lit_pca_data$year)
+
+lit_pca_plot <- ggplot(data= lit_plot, aes(x = PC1, y = PC2, label = Year)) +
+  geom_text_repel(max.overlaps = Inf) +
+  xlab(paste("PC1 - ", lit_pca_var_per[1], "%", sep = "")) +
+  ylab(paste("PC2 - ", lit_pca_var_per[2], "%", sep = "")) +
+  theme_light() +
+theme(legend.position = "none",
+        legend.title = element_text(size = 16),
+        legend.text = element_text(size = 14)) +
+  theme(axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black"),   
+        axis.line = element_line(color = "black"),   
+        plot.title = element_text(size = 16, face = "bold", color = "black")) +
+  ggtitle("(c) Scientific literature") 
+```
+
+```{r}
+pca_plots <- plot_grid(lit_pca_plot, eiar_pca_plot)
+```
+
+**Euclidean Distances between EIARs/Lit**
+
+```{r}
+#Calculating Eucidean distance between the points of the two PCAs
+eiar_points <- eiar_pca$x
+lit_points <- lit_pca$x
+
+euclidean_distances <- sqrt(rowSums((lit_scores-eiar_scores))^2)
+
+euclidean_distances_years <- data.frame(Distance = euclidean_distances,
+                                        Year = eiar_pca_data$year)
+
+#visualise the data:
+distance_data <- data.frame(
+  Distance = euclidean_distances,
+  Year = eiar_pca_data$year)
+
+ggplot(data = distance_data, aes(x = Year, y = Distance, label = Year)) +
+  geom_text() +
+  xlab("Year") +
+  ylab("Euclidean Distance") +
+  ggtitle("Euclidean Distance")
+
+ggplot(data = distance_data, aes(x = Year, y = Distance, label = Year)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  xlab("Year") +
+  ylab("Euclidean Distance") +
+  ggtitle("Euclidean Distance")
+```
+
+```{r}
+#run a linear regression model to assess whether there is a significant linear trend in the Euclidean distances over time
+m1 <- lm(Distance ~ Year, data = distance_data)
+summary(m1)
+```
+
+```{r}
+#plotting the euclidean distances
+ggplot(data = distance_data, aes(x = Year, y = Distance)) +
+  geom_line(alpha =1, size = 1, color = "#636363") +
+  geom_point(size = 2) +
+  xlab("Year") +
+  ylab("Euclidean Distance") +
+  ggtitle("Euclidean Distance") 
+
+ggplot(data = distance_data, aes(x = Year, y = Distance)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE, color = "#636363") +
+  xlab("Year") +
+  ylab("Euclidean Distance") +
+  ggtitle("Euclidean Distance")
+
+ggplot(data = distance_data, aes(x = Year, y = Distance, label = Year)) +
+  geom_text() +
+  xlab("Year") +
+  ylab("Euclidean Distance") +
+  ggtitle("Euclidean Distance") 
+
+ed_plot <- ggplot(data = distance_data, aes(x = Year, y = Distance)) +
+  geom_point(size = 2) +
+  xlab("Year") +
+  ylab("Euclidean Distance") +
+  theme_bw() +
+  ggtitle("Euclidean Distance") 
+```
+
+```{r}
+bar_plot <- ggplot(data = distance_data, aes(x = Year, y = Distance)) +
+  geom_bar(stat = "identity") +
+  xlab("Year") +
+  ylab("Euclidean Distance") +
+  theme_bw() +
+  ggtitle("Euclidean Distance")
+
+smooth_ed_plot <- ggplot(data = distance_data, aes(x = Year, y = Distance)) +
+  geom_smooth(color = "#39393A", fill = "#A6A8AD") +
+  geom_point(size = 2) +
+  labs(title = "(e)", 
+       x = "Year",
+       y = "Distance between PCA Scores") +
+  theme_light() +
+   theme(axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black"),   
+        axis.line = element_line(color = "black"),   
+        plot.title = element_text(size = 16, face = "bold", color = "black")) +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 14, color = "black"),
+        legend.text = element_text(size = 14, color = "black")) 
+
+```
+
+**Shannon Diversity**
+
+*EIARs*
+
+```{r}
+#| echo: false
+eiar_divdata <- read.csv("eiar_matrix_v2.csv", row.names = 1, header=T)
+```
+
+```{r}
+# Calculate Shannon Diversity for each EIAR year
+eiar_shannon_diversity <- diversity(eiar_divdata, index = "shannon")
+
+print(eiar_shannon_diversity)
+
+plot(eiar_shannon_diversity)
+```
+
+*Literature*
+
+```{r}
+#| echo: false
+lit_divdata <- read.csv("literature_matrix_v3.csv", row.names = 1, header=T)
+```
+
+```{r}
+#Calculate Shannon Diversity for each Literature year
+lit_shannon_diversity <- diversity(lit_divdata, index = "shannon")
+
+print(lit_shannon_diversity)
+
+plot(lit_shannon_diversity)
+```
+
+```{r}
+#Plot the two Shannon Diversity Indices
+years <- 2000:2021
+
+shannon_diversity <- data.frame(EIAR = eiar_shannon_diversity,
+                                Literature = lit_shannon_diversity,
+                                Years = years)
+
+shannon_diversity_long <- pivot_longer(shannon_diversity, cols = c(EIAR, Literature), names_to = "Index", values_to = "Diversity")
+
+
+
+#plot the diversity data
+diversity <- ggplot(shannon_diversity_long, aes(x = Years, y = Diversity, fill = Index)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(title = "(c)",
+       x = "Year",
+       y = "Diversity Index") +
+  scale_fill_manual(values = c("EIAR" = "#A6A8AD", "Literature" = "#39393A")) +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black"),   
+        axis.line = element_line(color = "black"),   
+        plot.title = element_text(size = 16, face = "bold", color = "black")) +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 14, color = "black"),
+        legend.text = element_text(size = 14, color = "black"))   
+```
+
+```{r}
+#Calculate the Average Shannon Diversity for the reviews
+eiar_mean_sd <- mean(eiar_shannon_diversity)
+eiar_mean_sd
+
+lit_mean_sd <- mean(lit_shannon_diversity)
+lit_mean_sd 
+
+#Use a t-test to see if there is a significant difference between the two datasets
+diversity_t_test <- t.test(eiar_shannon_diversity, lit_shannon_diversity)
+
+print(diversity_t_test)
+```
+
+```{r}
+#testing difference between diversity over time
+#setting up the data
+years <- 2000:2021
+div_data <- data.frame(
+  year = years,
+  lit = lit_shannon_diversity,
+  eiar = eiar_shannon_diversity
+) %>% 
+  pivot_longer(cols = c(lit, eiar), names_to = "source", values_to = "diversity")
+
+#using a linear model
+div_model <- lm(diversity ~ source * year, data = div_data)
+summary(div_model)
+
+#model diagnostics
+#residuals vs fitted
+plot(div_model, which = 1)
+#qq plot of residuals
+plot(div_model, which = 2)
+#residuals vs leverage
+plot(div_model, which = 5)
+# sq root of standardised vs fitted residuals
+plot(div_model, which = 3)
+
+div_model_plot <- ggplot(div_data, aes(x = year, y = diversity, color = source, linetype = source)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_light(base_size = 14) +
+  scale_color_manual(labels = c("EIAR", "Literature"), values = c("eiar" = "#568EA3", "lit" = "#C08497")) +
+  scale_linetype_manual(name = "Source", values = c("eiar" = "solid", "lit" = "dashed"),  labels = c("EIAR", "Literature")) +
+  labs(
+    title = "(d)",
+    y = "Shannon Diversity",
+    x = "Year",
+    color = "Source"
+  ) +
+  theme(axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black"),   
+        axis.line = element_line(color = "black"),   
+        plot.title = element_text(size = 16, face = "bold", color = "black")) +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 14, color = "black"),
+        legend.text = element_text(size = 14, color = "black"))   
+```
+
+```{r}
+#Post-hoc tests for the linear model of diversity over source*time
+div_emms <- emtrends(div_model, ~source, var = "year")
+summary(div_emms)
+
+#pairwise comparisons
+div_emms2 <- emmeans(div_model, ~ source, at = list(year = c(2000, 2005, 2010, 2015, 2020)))
+pairs(div_emms2)
+```
+
+```{r}
+# difference over time plot
+#get predicted values from the model
+preds <- expand.grid(
+  year = seq(min(div_data$year), max(div_data$year), 1),
+             source = c("lit", "eiar")
+  ) %>%
+    mutate(pred = predict(div_model, newdata = .))
+
+#change into wide format
+diff_df <- preds %>%
+  tidyr::pivot_wider(names_from = source, values_from = pred) %>%
+  mutate(diff = lit - eiar)
+
+#plot the differences over time
+ggplot(diff_df, aes(x = year, y = diff)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line(color = "#7570B3", size = 1.2) +
+  geom_point(color = "#7570B3", size = 2) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Predicted Difference in Shannon Diversity (lit - eiar)",
+    x = "Year",
+    y = "Difference in Diversity")
+```
+
+**Pielou Evenness**
+
+```{r}
+#S = 6 -> 6 taxonomic groups
+S <- 6
+```
+
+*EIARs*
+
+```{r}
+eiar_pielou <- eiar_shannon_diversity/log(S)
+print(eiar_pielou)
+```
+
+*Literature*
+
+```{r}
+lit_pielou <- lit_shannon_diversity/log(S)
+print(lit_pielou)
+```
+
+```{r}
+#plot to visualise:
+pielou_eveness <- data.frame(EIAR = eiar_pielou,
+                             Literature = lit_pielou,
+                             Years = years)
+pielou_eveness_long <- pivot_longer(pielou_eveness, cols = c(EIAR, Literature), names_to = "Index", values_to = "Eveness")
+
+evenness <- ggplot(pielou_eveness_long, aes(x = Years, y = Eveness, fill = Index)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(title = "C.",
+       x = "Year",
+       y = "Pielou Evenness") +
+  scale_fill_manual(values = c("EIAR" = "#A6A8AD", "Literature" = "#39393A")) +
+  theme_bw()
+```
+
+```{r}
+#Calculate the average Pielou evenness for the Review datasets
+eiar_mean_pe <- mean(eiar_pielou)
+eiar_mean_pe
+
+lit_mean_pe <- mean(lit_pielou)
+lit_mean_pe
+
+#Use a t-test to see if there is a significant difference between the two datasets
+eveness_t_test <- t.test(eiar_pielou, lit_pielou)
+print(eveness_t_test)
+```
+
+**Proportion plots**
+
+```{r}
+#| echo: false
+dark2 <- brewer.pal(8, "Dark2")
+paired <- brewer.pal(12, "Paired")
+```
+
+*EIARs*
+
+```{r}
+eiar_long <- pivot_longer(eiar_data, cols = c(bats, birds, herpetofauna, invertebrates, mammals, vegetation), names_to = "taxa", values_to = "proportion")
+
+eiar_prop <- ggplot(eiar_long, aes(x = year, y = proportion, fill = taxa)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Year", y = "Proportion of taxonomic groups", fill = "Taxa") + 
+  scale_fill_manual(values = paired) +
+  theme_light() +
+  theme(legend.position = "none",
+        legend.title = element_text(size = 16),
+        legend.text = element_text(size = 14)) +
+  theme(axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black"),   
+        axis.line = element_line(color = "black"),   
+        plot.title = element_text(size = 16, face = "bold", color = "black")) +
+  ggtitle("(b) EIAR")
+```
+
+*Literature*
+
+```{r}
+lit_long <- pivot_longer(lit_data, cols = -year, names_to = "taxa", values_to = "proportion")
+
+lit_prop <- ggplot(lit_long, aes(x = year, y = proportion, fill = taxa)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Year", y = "Proportion of taxonomic groups", fill = "Taxa") + 
+  scale_fill_manual(values = paired) +
+  theme_light() +
+  theme(legend.position = "none",
+        legend.title = element_text(size = 16),
+        legend.text = element_text(size = 14)) +
+  theme(axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
+        axis.text.y = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16, color = "black"),   
+        axis.line = element_line(color = "black"),   
+        plot.title = element_text(size = 16, face = "bold", color = "black")) +
+  ggtitle("(a) Scientific literature")
+```
+
+```{r}
+prop_plots <- grid.arrange(lit_prop, eiar_prop, ncol =2)
+cvdPlot(prop_plots)
+```
+
+**Combined plots**
+
+```{r}
+fig_3 <- grid.arrange(prop_plots, diversity, ncol = 1)
+
+ggsave("fig_3.png", plot = fig_3, width = 280, height = 300, units = "mm")
+```
+
+## MANOVAs
+
+```{r}
+#set up data
+eiar_data <- read.csv("eiar_matrix_v2.csv")
+lit_data <- read.csv("literature_matrix_v3.csv")
+```
+
+```{r}
+#combine the datasets
+#add a source column to each dataset
+eiar_data$source <- "eiar"
+lit_data$source <- "lit"
+
+#combine the data
+combined_data <- rbind(eiar_data, lit_data)
+```
+
+```{r}
+#combine the data based on year
+combined_data <- combined_data %>%
+  mutate(period = ifelse(year >= 2000 & year <= 2010, "2000-2010", "2011-2021"))
+```
+
+```{r}
+#test data fits MANOVA assumptions
+#normality
+shapiro.test(combined_data$bats)
+shapiro.test(combined_data$birds)
+shapiro.test(combined_data$herpetofauna)
+shapiro.test(combined_data$vegetation)
+shapiro.test(combined_data$mammals)
+shapiro.test(combined_data$invertebrates)
+
+#homogeneity
+leveneTest(bats ~ period, data = combined_data)
+leveneTest(birds ~ period, data = combined_data)
+leveneTest(herpetofauna ~ period, data = combined_data)
+leveneTest(vegetation ~ period, data = combined_data)
+leveneTest(mammals ~ period, data = combined_data)
+leveneTest(invertebrates ~ period, data = combined_data)
+```
+
+##### *MANOVA 1*
+
+Test for differences in the proportion/contribution of the different taxonomic groups between the first and second half of the time series.
+
+```{r}
+#fit a manova
+manova_1 <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals) ~ period, data = combined_data)
+#results summary
+summary.aov(manova_1)
+summary(manova_1, tol = 0)
+```
+
+```{r}
+#fitting a manova for the period (1st or 2nd half of the time series)
+pm <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals) ~ period * source, data = combined_data)
+
+#results summary
+summary.aov(pm)
+summary(pm, tol = 0)
+```
+
+```{r}
+#7 - Plot a boxplot of all the taxonomic groups for the two time periods
+#pivot data long
+long_data <- combined_data %>%
+  pivot_longer(cols = bats:vegetation,
+               names_to = "taxonomic_group",
+               values_to = "proportion")
+
+ggplot(long_data, aes(x = period, y = proportion, fill = taxonomic_group)) +
+  geom_boxplot() +
+  theme_light()
+
+```
+
+##### *MANOVA 2*
+
+Test for differences in the proportion/contribution of the different taxonomic groups between the source (EIAR/Lit)
+
+```{r}
+manova_2 <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals, vegetation) ~ source, data = combined_data)
+#results summary
+summary.aov(manova_2)
+summary(manova_2, tol = 0)
+```
+
+```{r}
+#Plot a boxplot of all the taxonomic groups for the two sources
+ggplot(long_data, aes(x = source, y = proportion, fill = taxonomic_group)) +
+  geom_boxplot() +
+  theme_light()
+```
+
+##### *MANOVA 3*
+
+Test for differences in the proportion/contribution of the different taxonomic groups between the years (2000-2021) and the source (EIAR/Lit), with an interaction term (\*)
+
+```{r}
+m3 <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals, vegetation) ~ year * source, data = combined_data)
+summary.aov(m3)
+summary(m3, tol = 0)
+```
+
+##### *MANOVA 4*
+
+Test for differences in the proportion/contribution of the different taxonomic groups between the years (2000-2021).
+
+```{r}
+#m4 <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals, vegetation) ~ year, data = combined_data)
+#summary.aov(m4)
+#summary(m4, tol = 0)
+#summary(m4)
+```
+
+Rank deficient so there is linear dependency among the variables, going to remove vegetation
+
+##### *MANOVA 5 & 6 & 7 - Used in paper*
+
+```{r}
+m5 <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals) ~ year, data = combined_data)
+summary.aov(m5)
+summary(m5, tol = 0)
+```
+
+```{r}
+m6 <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals) ~ source, data = combined_data)
+#results summary
+summary.aov(m6)
+summary(m6, tol = 0)
+
+```
+
+```{r}
+m7 <- manova(cbind(bats, birds, herpetofauna, invertebrates, mammals) ~ year*source, data = combined_data)
+#results summary
+summary.aov(m7)
+summary(m7, tol = 0)
+```
+
+```{r}
+#running post-hoc tests on the interaction term as the output is significant
+#simple effects analysis using emmeans
+#from the post-hoc anovas (summary.aov(m7)) mammals has a significant effect for the interaction term
+#set year as a factor
+combined_data$year <- as.factor(combined_data$year)
+#simple effects for mammals
+emm_mammals <- emmeans(lm(mammals ~ year * source, data = combined_data), 
+                       ~ year | source)
+pairs(emm_mammals, adjust = "bonferroni") #compare years within each source
+emm_mammals2 <- emmeans(lm(mammals ~ year * source, data = combined_data),
+                         ~ source | year)
+pairs(emm_mammals2, adjust = "bonferroni") #compare sources within each year
+
+
+#simple means for invertebrates 
+emm_invertebrates <- emmeans(lm(invertebrates ~ year * source, data = combined_data),
+                             ~ year | source) 
+pairs(emm_invertebrates, adjust = "bonferroni") #compare years within each source
+emm_invertebrates2 <- emmeans(lm(invertebrates ~ year * source, data = combined_data),
+                              ~ source | year)
+pairs(emm_invertebrates2, adjust = "bonferroni")
+
+#simple effects analysis isn't working because of there is only one observation per source per year
+```
+
+```{r}
+#trying an anova instead
+combined_data$year <- as.factor(combined_data$year)
+res_aov <- aov(cbind(bats, birds, herpetofauna, invertebrates, mammals) ~ year, data = combined_data)
+
+#testing normality
+par(mfrow = c(1,2))
+#historgram
+hist(res_aov$residuals)
+##qq plot
+qqPlot(res_aov$residuals,
+       id = FALSE)
+#Shapiro-Wilk normality test
+shapiro.test(res_aov$residuals) #not normal p <0.05
+
+summary(res_aov)
+
+#try with source 
+res_aov2 <- aov(cbind(bats, birds, herpetofauna, invertebrates, mammals) ~ source, data = combined_data)
+summary(res_aov2)
+```
+
+```{r}
+#trying a permutational manova using the 'vegan' package in R
+#collate the data 
+props <- combined_data[, c("bats", "birds", "herpetofauna", "invertebrates", "mammals", "vegetation")]
+#set as factirs 
+combined_data$year <- as.factor(combined_data$year)
+combined_data$source <- as.factor(combined_data$source)
+
+# PERMANOVA
+adonis_result <- adonis2(props ~ year + source, data = combined_data, permutations = 999, method = "bray")
+
+print(adonis_result)
+```
+
+```{r}
+adonis_result <- adonis2(props ~ year: source, data = combined_data, permutations = 999, method = "bray")
+
+print(adonis_result)
+```
+
+```{r}
+#pairwise adonis
+# pairwise comparisons between years
+pairwise_res <- pairwise.adonis(props, factors = combined_data$year, sim.method = "bray", p.adjust.m = "holm")
+
+print(pairwise_res)
+```
+
+```{r}
+nmds <- metaMDS(props, distance = "bray", k = 2, trymax = 100)
+
+plot(nmds, type = "n")
+points(nmds, display = "sites", col = as.factor(combined_data$year), pch = 19)
+legend("topright", legend = levels(combined_data$year), col = 1:length(levels(combined_data$year)), pch = 19)
+```
