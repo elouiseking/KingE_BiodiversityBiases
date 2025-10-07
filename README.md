@@ -5,7 +5,7 @@ The code is organised into three folders based on the type of analysis and visua
 ## This includes:
 - Code to generate a bar plot for the geographic distribution of the global scientific literature review.
 - Code to produce the alluvial plots for the scientific literature and Environmental Impact Assessment Reports.
-- Code to run the main analysis (Diversity, PCA, Euclidean Distance) and generate associated figures.
+- Code to run the main analysis and generate associated figures.
 
 ## Repository structure:
 The repository contains the following folders:
