@@ -11,7 +11,7 @@ The code is organised into three folders based on the type of analysis and visua
 The repository contains the following folders:
 - 'Literature_Geographic': Contains the R code to produce Figure 1.
 - 'Alluvial_Plots': Contains the R code to produce Figure 2.
-- 'PCA_Diversity_Analysis': Contains the R code for the analyses and to produce Figure 3.
+- 'Analyses': Contains the R code for the analyses and to produce Figure 3.
 
 ## Installation
 To run the code in this repository, you need to have R installed. Available at: https://cran.r-project.org/
