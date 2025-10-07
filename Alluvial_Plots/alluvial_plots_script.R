@@ -174,15 +174,15 @@ eiar_alluvial_flipped <- ggplot(data = eiar_surveys,
   theme(legend.position = "none",
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 14),   # Set size of legend text
-        axis.title = element_text(size = 16, color = "black"),
+        axis.title = element_blank(),
         axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
-        axis.text.y = element_text(size = 14, color = "black"), 
+        axis.text.y = element_blank(), 
         axis.title.y.left = element_blank(),
         axis.text.y.left = element_blank(),
         axis.ticks.y.left = element_blank(),
         panel.border = element_blank(),
-       axis.line.y.right = element_line(color = "black"),
-       axis.line.x.bottom = element_line(color = "black"),
+       axis.line.y.right = element_blank(),
+       axis.line.x.bottom = element_blank(),
        plot.title = element_text(size = 16, face = "bold", color = "black")) +
   labs(y = "Number of surveys") +
   ggtitle("(b)")
@@ -206,25 +206,25 @@ lit_year_taxa_by_effect <- ggplot(data = lit_year_impacts,
   theme(legend.position = "none",
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 14),   # Set size of legend text
-        axis.title = element_text(size = 16, color = "black"),
+        axis.title = element_blank(),
         axis.text.x = element_text(size = 14, hjust = 1, color = "black"),
-        axis.text.y = element_text(size = 14, color = "black"), 
+        axis.text.y = element_blank(), 
         panel.border = element_blank(),
-        axis.line.y.left = element_line(color = "black"),
-        axis.line.x.bottom = element_line(color = "black"),
+        axis.line.y.left = element_blank(),
+        axis.line.x.bottom = element_blank(),
         plot.title = element_text(size = 16, face = "bold", color = "black")) +
   guides(fill = guide_legend(ncol = 2)) +
   labs(y = "Number of research articles") +
   ggtitle("(a)")
 
-ggsave("lit_year_taxa_by_effect.png", plot = lit_year_taxa_by_effect)
+#ggsave("lit_year_taxa_by_effect.png", plot = lit_year_taxa_by_effect)
 
 
 #combined
 combined_alluvials <- plot_grid(lit_year_taxa_by_effect, eiar_alluvial_flipped, 
                                  align = "v", hjust = -1)
 
-ggsave("combined_alluvials.png", plot = combined_alluvials, width = 18, height = 8)
+ggsave("combined_alluvials.png", plot = combined_alluvials, width = 18, height = 9)
 
 #Make Stacked Bar Plots Using the same data used for the alluvial plots
 
@@ -237,27 +237,27 @@ ggplot(eiar_surveys, aes(x = Year_Cat, y = Frequency) +
          theme_light())
 
 post2008 <- lit_taxa %>%
-  filter(year >= 2008 & year <= 2021)
-sum(post2008$papers)
+  filter(Year >= 2008 & Year <= 2021)
+sum(post2008$Papers)
 
 result <- lit_taxa %>%
-  filter(year >= 2008 & year <=2021 & effect == "collision")
-total_collision <- sum(result$papers)
+  filter(Year >= 2008 & Year <=2021 & Effect == "collision")
+total_collision <- sum(result$Papers)
 
 result2 <- lit_taxa %>%
-  filter(year >= 2008 & year <= 2021 & effect == "habitat_alteration")
-total_ha <- sum(result2$papers)
+  filter(Year >= 2008 & Year <= 2021 & Effect == "habitat_alteration")
+total_ha <- sum(result2$Papers)
 
 post2016  <- lit_taxa %>% 
-  filter(year >= 2016 & year <= 2021)
-sum(post2016$papers)
+  filter(Year >= 2016 & Year <= 2021)
+sum(post2016$Papers)
 
 collisionpost2016 <- lit_taxa %>% 
-  filter(year >= 2016 & year <= 2021 & effect == "collision")
-sum(collisionpost2016$papers)
+  filter(Year >= 2016 & Year <= 2021 & Effect == "collision")
+sum(collisionpost2016$Papers)
 
 batcollisionpost2016 <- lit_taxa %>% 
-  filter(year >= 2016 & year <= 2021 & effect == "collision" & taxa == "bats")
+  filter(Year >= 2016 & Year <= 2021 & Effect == "collision" & Taxa == "bats")
 sum(batcollisionpost2016$papers)
 
 
